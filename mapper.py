@@ -51,6 +51,6 @@ for i in range(len(users)):
         correlation = calculate_correlation(users[i],users[j],userProfiles)
         if correlation is not None and not(math.isnan(correlation)== True):
             userProfiles[users[i]]["correlations"][users[j]] = userProfiles[users[j]]["correlations"][users[i]] = correlation
-            print(f"{users[i]}, {users[j]} : {correlation}")
 
-print(userProfiles)
+for user,data in userProfiles.items():
+    print("{"+ f"{user}:{data}"+"}")
