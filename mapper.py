@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import math
 import sys
 import csv
 from scipy.stats import pearsonr
@@ -35,7 +36,7 @@ for line in sys.stdin:
     user, movie, rating, timestamp = line.strip().split()
     rating = int(rating)
     if user not in userProfiles:
-        userProfiles[user] = {"watched": {}} 
+        userProfiles[user] = {"watched": {},"correlations": {}} 
     userProfiles[user]["watched"][movie] = rating 
 
 for user, data in userProfiles.items():
@@ -43,15 +44,13 @@ for user, data in userProfiles.items():
     avg_rating = sum(ratings) / len(ratings) if ratings else 0 
     userProfiles[user]["avg_rating"] = avg_rating
 
+users = list(userProfiles.keys())
 
-for user1 in userProfiles:
-    userProfiles[user1]["correlations"] = {}
-    for user2 in userProfiles:
-        if user1 != user2: 
-            correlation = calculate_correlation(user1, user2, userProfiles)
-            if correlation is not None:
-                # print(f"{user1}, {user2} : {correlation}")
-                userProfiles[user1]["correlations"][user2] = correlation
+for i in range(len(users)):
+    for j in range(i+1,len(users)):
+        correlation = calculate_correlation(users[i],users[j],userProfiles)
+        if correlation is not None and not(math.isnan(correlation)== True):
+            userProfiles[users[i]]["correlations"][users[j]] = userProfiles[users[j]]["correlations"][users[i]] = correlation
+            print(f"{users[i]}, {users[j]} : {correlation}")
 
 print(userProfiles)
-
