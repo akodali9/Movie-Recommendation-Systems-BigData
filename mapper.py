@@ -1,21 +1,57 @@
 #!/usr/bin/env python3
 
 import sys
-userprofiles = {}
+import csv
+from scipy.stats import pearsonr
+
+def find_common_movies(user1, user2, userProfiles):
+    """Find common movies rated by both user1 and user2."""
+    movies_user1 = set(userProfiles.get(user1, {}).get("watched", {}).keys())
+    movies_user2 = set(userProfiles.get(user2, {}).get("watched", {}).keys())
+    common_movies = movies_user1.intersection(movies_user2)
+    return common_movies
+
+def extract_ratings(user, common_movies, userProfiles):
+    """Extract ratings for common movies for a given user."""
+    ratings = [userProfiles[user].get("watched", {}).get(movie, 0) for movie in common_movies]
+    return ratings
+
+def calculate_correlation(user1, user2, userProfiles):
+    """Calculate Pearson correlation coefficient between two users based on their ratings."""
+    common_movies = find_common_movies(user1, user2, userProfiles)
+    if len(common_movies) < 2:
+        return None 
+    ratings_user1 = extract_ratings(user1, common_movies, userProfiles)
+    ratings_user2 = extract_ratings(user2, common_movies, userProfiles)
+
+    if len(set(ratings_user1)) == 1 or len(set(ratings_user2)) == 1:
+        return None
+    
+    correlation, _ = pearsonr(ratings_user1, ratings_user2)
+    return correlation
+
+userProfiles = {}
 for line in sys.stdin:
-    userid,itemid,rating = line.strip().split()[:3] # omiting timestamp5
+    user, movie, rating, timestamp = line.strip().split()
     rating = int(rating)
-    if userid in userprofiles.keys():
-        userprofiles[userid]["watched"].append({itemid:rating})
-    else:
-        userprofiles[userid] = dict()
-        userprofiles[userid]["watched"] = list()
-        userprofiles[userid]["watched"].append({itemid:rating})
-for userid,data in userprofiles.items():
+    if user not in userProfiles:
+        userProfiles[user] = {"watched": {}} 
+    userProfiles[user]["watched"][movie] = rating 
 
-    total_sum = sum(sum(dictionary.values()) for dictionary in data["watched"])
-    total_len = len([sum(dictionary.values()) for dictionary in data["watched"]])
-    userprofiles[userid]["avg_rating"] = total_sum/total_len
+for user, data in userProfiles.items():
+    ratings = data["watched"].values()
+    avg_rating = sum(ratings) / len(ratings) if ratings else 0 
+    userProfiles[user]["avg_rating"] = avg_rating
 
-for userid,data in userprofiles.items():
-    print("{"+f"{userid}:{data}"+"}")
+
+for user1 in userProfiles:
+    userProfiles[user1]["correlations"] = {}
+    for user2 in userProfiles:
+        if user1 != user2: 
+            correlation = calculate_correlation(user1, user2, userProfiles)
+            if correlation is not None:
+                # print(f"{user1}, {user2} : {correlation}")
+                userProfiles[user1]["correlations"][user2] = correlation
+
+print(userProfiles)
+
