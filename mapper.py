@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import math
 import sys
 import csv
@@ -51,6 +52,6 @@ for i in range(len(users)):
         correlation = calculate_correlation(users[i],users[j],userProfiles)
         if correlation is not None and not(math.isnan(correlation)== True):
             userProfiles[users[i]]["correlations"][users[j]] = userProfiles[users[j]]["correlations"][users[i]] = correlation
-
-for user,data in userProfiles.items():
-    print("{"+ f"{user}:{data}"+"}")
+with open("./json_file.json", 'w') as json_file:
+    json.dump(userProfiles, json_file, indent=4)
+print(json.dumps(userProfiles))

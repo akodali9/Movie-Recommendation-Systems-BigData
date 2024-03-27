@@ -3,46 +3,62 @@
 import json
 import sys
 
-user_rating = dict()
-movie_rating = dict()
+data = {}
+movie_list = []
 
-def recommend(user_rating,movie_rating):
-    recommendation = dict()
-    for userid,data in user_rating.items():
-        avg = sum(data['ratings'])/len(data['ratings'])
-        recommendation[userid] = {'avg_rating': avg,'watched':data['movies'],'recommend':[]}
-    for movieid,movierating in movie_rating.items():
-        mov_avg = sum(movierating)/len(movierating)
-        for userid,userdata in recommendation.items():
-            if(abs(userdata['avg_rating']-mov_avg)<=0.5 and movieid not in userdata['watched']):
-                recommendation[userid]['recommend'].append({movieid : userdata['avg_rating']-mov_avg})
-            
-    for userid,userdata in recommendation.items():
-        sorted_recommend = sorted(recommendation[userid]["recommend"], key=lambda x: list(x.values())[0],reverse=True)
-        recommendation[userid]["recommend"] = sorted_recommend
-    for userid,userdata in recommendation.items():
-        print(f'{userid}\tshould watch movies with id as\t{recommendation[userid]["recommend"][:5]}')
-    formatted_json = json.dumps(recommendation, indent=4)
-    # print(formatted_json)
-for line in sys.stdin:
-    userid,itemid,rating= line.strip().split()
-    rating = int(rating)
-    if userid in user_rating.keys():
-        user_rating[userid]['ratings'].append(int(rating))
-        if itemid not in user_rating[userid]['movies']:
-            user_rating[userid]['movies'].append(itemid)
-    else:
+def load_json(line):
+    try:
+        data = json.loads(line)
+        return data
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"{e}")
 
-        user_rating[userid] = dict()
-        user_rating[userid]['ratings'] = list()
-        user_rating[userid]['ratings'].append(int(rating))
-        user_rating[userid]['movies'] = list()
-        user_rating[userid]['movies'].append(itemid)
+def findNotWatched(user):
+    return list(set(data[user]["watched"].keys()).symmetric_difference(set(movie_list)))
 
-    if itemid in movie_rating.keys():
-        movie_rating[itemid].append(int(rating))
-    else:
-        movie_rating[itemid] = list()
-        movie_rating[itemid].append(int(rating))
+def findreviewers(movie):
+    reviewers = []
+    for user,data_item in data.items():
+        if movie in data_item["watched"].keys():
+            reviewers.append({"reviewer":user,"rating":data_item["watched"][movie]})
+    return reviewers
 
-recommend(user_rating,movie_rating)
+def findCorrelation(user1,user2):
+    if data.get(user1) and data[user1].get("correlations") and data[user1]["correlations"].get(user2):
+        return data[user1]["correlations"][user2]
+    return 0
+
+
+def predictRating(user,reviewers):
+    sum_correlation = 0
+    total_value = 0
+    for reviewer in reviewers:
+        correlation = findCorrelation(user,reviewer["reviewer"])
+        total_value +=reviewer["rating"]*correlation
+        sum_correlation +=correlation
+    if sum_correlation > 0:
+        return total_value/sum_correlation
+    return 0
+
+def getmovies():
+    for value in data.values():
+        for i in value["watched"].keys():
+            if i not in movie_list:
+                movie_list.append(i)
+
+if __name__ == "__main__":
+    for line in sys.stdin:
+        data = load_json(line.strip())
+    getmovies()
+    for user in data.keys():
+        print(user)
+        notWatched = findNotWatched(user)
+        data[user]["not_watched_prediction"] = dict()
+        for movie_not_watched in notWatched:
+            reviewers = findreviewers(movie_not_watched)
+            print(reviewers)
+            predicted_rating = predictRating(user,reviewers)
+            data[user]["not_watched_prediction"][movie_not_watched] = predicted_rating
+    with open("./json_output_file.json", 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+    print(json.dumps(data,indent=4))
